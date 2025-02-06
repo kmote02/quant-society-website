@@ -53,7 +53,7 @@ export default function Home() {
           <div>
             <h2 className="text-3xl font-bold text-primary mb-4">What We Do?</h2>
             <p className="text-lg text-muted-foreground">
-              At MUN Quant Society, we're trying to help students learn about quantitative trading by actively managing a fund, develop models, and gain real-world experience in financial markets. 
+              At MUN Quant Society, we&rsquo;re trying to help students learn about quantitative trading by actively managing a fund, develop models, and gain real-world experience in financial markets. 
               Our intent is to help our members gain hands-on exposure to finance and technology.
             </p>
           </div>
