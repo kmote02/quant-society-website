@@ -22,6 +22,7 @@ export default function Home() {
             Empowering students at Memorial University to explore careers in quantitative finance.
           </p>
           <p className="text-xl text-secondary mb-8">First Meeting: Next Wednesday!</p>
+          <p className="text-xl mb-8">12th Feb | 1 PM | EN2022!</p>
 
           {/* Get Involved Button */}
           <a href="https://forms.gle/4GGqxBNs49x4KNKK7" target="_blank" rel="noopener noreferrer">
