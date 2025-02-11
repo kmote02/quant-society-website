@@ -178,7 +178,7 @@ export default function Page() {
       {selectedStock && (
         <div className="mt-8 w-full max-w-4xl text-center">
           <p className="text-2xl font-bold text-[var(--secondary)] mb-6">
-            Selected Stock: {selectedStock.name} ({selectedStock.symbol}) - {selectedStock.stockExchange}
+            Current Selection: {selectedStock.name} ({selectedStock.symbol}) - {selectedStock.stockExchange}
           </p>
 
           <div className="flex flex-col items-center">
