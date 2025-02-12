@@ -16,8 +16,14 @@ import { Calendar } from "@/components/ui/calendar";
 import { DateRange } from "react-day-picker";
 
 // ------------------------------------------------
-// Define a type for our API responses to avoid "any"
+// Define types for our API responses to avoid `any`
 // ------------------------------------------------
+type StockResult = {
+  name: string;
+  symbol: string;
+  stockExchange: string;
+};
+
 type HistoricalData = {
   [key: string]: unknown;
 };
@@ -33,21 +39,13 @@ type ApiResponse =
 
 export default function Page() {
   const [query, setQuery] = React.useState("");
-  const [results, setResults] = React.useState<
-    Array<{
-      name: string;
-      symbol: string;
-      stockExchange: string;
-    }>
-  >([]);
+  const [results, setResults] = React.useState<StockResult[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  const [selectedStock, setSelectedStock] = React.useState<{
-    name: string;
-    symbol: string;
-    stockExchange: string;
-  } | null>(null);
+  const [selectedStock, setSelectedStock] = React.useState<StockResult | null>(
+    null
+  );
 
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>({
     from: new Date(),
@@ -56,7 +54,7 @@ export default function Page() {
 
   const [selectedUrl, setSelectedUrl] = React.useState<string | null>(null);
 
-  // Use the ApiResponse type here instead of "any"
+  // Use the ApiResponse type here instead of `any`
   const [apiResponse, setApiResponse] = React.useState<ApiResponse>(null);
 
   // ------------------------------------------------
@@ -69,7 +67,8 @@ export default function Page() {
     setError(null);
 
     try {
-      const response = await axios.get(
+      // Specify the response data type to avoid `any`.
+      const response = await axios.get<StockResult[]>(
         `https://financialmodelingprep.com/api/v3/search?query=${query}&limit=9&apikey=${process.env.NEXT_PUBLIC_API_KEY}`
       );
       setResults(response.data);
@@ -84,11 +83,7 @@ export default function Page() {
   // ------------------------------------------------
   // 2) Select a stock from the search results
   // ------------------------------------------------
-  const handleCardSelect = (result: {
-    name: string;
-    symbol: string;
-    stockExchange: string;
-  }) => {
+  const handleCardSelect = (result: StockResult) => {
     setSelectedStock(result);
     setResults([]);
     setQuery("");
@@ -98,7 +93,8 @@ export default function Page() {
   // 3) Call the selected API endpoint
   // ------------------------------------------------
   const handleApiCall = async () => {
-    if (!selectedUrl || !selectedStock || !dateRange?.from || !dateRange?.to) return;
+    if (!selectedUrl || !selectedStock || !dateRange?.from || !dateRange?.to)
+      return;
 
     const formattedFrom = dateRange.from.toISOString().split("T")[0];
     const formattedTo = dateRange.to.toISOString().split("T")[0];
@@ -112,6 +108,7 @@ export default function Page() {
 
     try {
       console.log(`Calling ${urlWithParams}`);
+      // Not strictly necessary to type this response since it can be many shapes:
       const response = await axios.get(urlWithParams);
       setApiResponse(response.data);
     } catch (err: unknown) {
@@ -130,7 +127,7 @@ export default function Page() {
   const handleDownloadCSV = () => {
     if (!apiResponse) return;
 
-    // Use 'const' instead of 'let' to satisfy "prefer-const"
+    // Use `const` instead of `let` to satisfy "prefer-const"
     const rows: string[] = [];
 
     if (Array.isArray(apiResponse)) {
@@ -138,9 +135,12 @@ export default function Page() {
         const headers = Object.keys(apiResponse[0]);
         rows.push(headers.join(","));
 
-        (apiResponse as Array<Record<string, unknown>>).forEach((obj) => {
-          rows.push(Object.values(obj).join(","));
-        });
+        // Add explicit type for `obj`.
+        (apiResponse as Array<Record<string, unknown>>).forEach(
+          (obj: Record<string, unknown>) => {
+            rows.push(Object.values(obj).join(","));
+          }
+        );
       }
     } else if (
       apiResponse !== null &&
@@ -153,7 +153,7 @@ export default function Page() {
         const headers = Object.keys(data[0]);
         rows.push(headers.join(","));
 
-        data.forEach((obj) => {
+        data.forEach((obj: Record<string, unknown>) => {
           rows.push(Object.values(obj).join(","));
         });
       }
@@ -285,7 +285,10 @@ export default function Page() {
             </div>
           </div>
 
-          <Button className="mt-6 bg-primary text-primary-foreground" onClick={handleApiCall}>
+          <Button
+            className="mt-6 bg-primary text-primary-foreground"
+            onClick={handleApiCall}
+          >
             Go!
           </Button>
 
