@@ -127,40 +127,33 @@ export default function Page() {
   const handleDownloadCSV = () => {
     if (!apiResponse) return;
 
-    // Use `const` instead of `let` to satisfy "prefer-const"
     const rows: string[] = [];
 
     if (Array.isArray(apiResponse)) {
-      if (apiResponse.length > 0) {
-        const headers = Object.keys(apiResponse[0]);
+        if (apiResponse.length > 0) {
+            const headers = Object.keys(apiResponse[0] as object); // Type assertion
+            rows.push(headers.join(","));
+
+            apiResponse.forEach(obj => { // Type inferred
+                rows.push(Object.values(obj).join(","));
+            });
+        }
+    } else if (apiResponse && typeof apiResponse === 'object' && 'historical' in apiResponse && Array.isArray(apiResponse.historical)) {
+        const historicalData = apiResponse.historical;
+        const headers = Object.keys(historicalData[0] as object); // Type assertion
         rows.push(headers.join(","));
 
-        // Add explicit type for `obj`.
-        (apiResponse as Array<Record<string, unknown>>).forEach(
-          (obj: Record<string, unknown>) => {
+        historicalData.forEach(obj => { // Type inferred
             rows.push(Object.values(obj).join(","));
-          }
-        );
-      }
-    } else if (
-      apiResponse !== null &&
-      typeof apiResponse === "object" &&
-      "historical" in apiResponse &&
-      Array.isArray(apiResponse.historical)
-    ) {
-      const data = apiResponse.historical as Array<Record<string, unknown>>;
-      if (data.length > 0) {
-        const headers = Object.keys(data[0]);
-        rows.push(headers.join(","));
-
-        data.forEach((obj: Record<string, unknown>) => {
-          rows.push(Object.values(obj).join(","));
         });
-      }
+    } else if (typeof apiResponse === 'string' || apiResponse === null) {
+        console.error("API response was a string or null:", apiResponse);
+        return;
     } else {
-      console.error("Unexpected API response format:", apiResponse);
-      return;
+        console.error("Unexpected API response format:", apiResponse);
+        return;
     }
+
 
     const csvContent = rows.join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
