@@ -1,7 +1,6 @@
 "use client";
-
 import * as React from "react";
-import axios from "axios";
+import axios, { AxiosResponse } from "axios"; // Import AxiosResponse
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +13,6 @@ import {
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { DateRange } from "react-day-picker";
-
 // ------------------------------------------------
 // Define types for our API responses to avoid `any`
 // ------------------------------------------------
@@ -24,17 +22,25 @@ type StockResult = {
   stockExchange: string;
 };
 
-type HistoricalData = {
-  [key: string]: unknown;
+// Define a more specific type for HistoricalData based on likely API response structure
+type HistoricalDataPoint = {
+  date: string; // Assuming date is always a string in the response
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
 };
+type HistoricalData = HistoricalDataPoint[];
+
 
 type ApiResponse =
-  | Array<HistoricalData>
+  | HistoricalData // Expecting HistoricalData array for historical endpoints
   | {
-      historical?: Array<HistoricalData>;
-      [key: string]: unknown;
+      historical?: HistoricalData; // For endpoints that wrap data in 'historical'
+      [key: string]: unknown; // Keep unknown for other potential keys
     }
-  | string
+  | string // For error messages or other string responses
   | null;
 
 export default function Page() {
@@ -42,33 +48,26 @@ export default function Page() {
   const [results, setResults] = React.useState<StockResult[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-
   const [selectedStock, setSelectedStock] = React.useState<StockResult | null>(
     null
   );
-
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>({
     from: new Date(),
     to: new Date(),
   });
-
   const [selectedUrl, setSelectedUrl] = React.useState<string | null>(null);
-
   // Use the ApiResponse type here instead of `any`
   const [apiResponse, setApiResponse] = React.useState<ApiResponse>(null);
-
   // ------------------------------------------------
   // 1) Search for stocks
   // ------------------------------------------------
   const handleSearch = async () => {
     if (!query) return;
-
     setLoading(true);
     setError(null);
-
     try {
       // Specify the response data type to avoid `any`.
-      const response = await axios.get<StockResult[]>(
+      const response: AxiosResponse<StockResult[]> = await axios.get<StockResult[]>(
         `https://financialmodelingprep.com/api/v3/search?query=${query}&limit=9&apikey=${process.env.NEXT_PUBLIC_API_KEY}`
       );
       setResults(response.data);
@@ -79,7 +78,6 @@ export default function Page() {
       setLoading(false);
     }
   };
-
   // ------------------------------------------------
   // 2) Select a stock from the search results
   // ------------------------------------------------
@@ -88,28 +86,24 @@ export default function Page() {
     setResults([]);
     setQuery("");
   };
-
   // ------------------------------------------------
   // 3) Call the selected API endpoint
   // ------------------------------------------------
   const handleApiCall = async () => {
     if (!selectedUrl || !selectedStock || !dateRange?.from || !dateRange?.to)
       return;
-
     const formattedFrom = dateRange.from.toISOString().split("T")[0];
     const formattedTo = dateRange.to.toISOString().split("T")[0];
-
     // Dynamically adjust the URL with symbol, date range, and API key
     const urlWithParams = selectedUrl
       .replace("AAPL", selectedStock.symbol)
       .replace("from=2018-03-12", `from=${formattedFrom}`)
       .replace("to=2019-03-12", `to=${formattedTo}`)
       .replace("YOUR_API_KEY", process.env.NEXT_PUBLIC_API_KEY || "");
-
     try {
       console.log(`Calling ${urlWithParams}`);
-      // Not strictly necessary to type this response since it can be many shapes:
-      const response = await axios.get(urlWithParams);
+      //  Type the response of axios.get with ApiResponse
+      const response: AxiosResponse<ApiResponse> = await axios.get<ApiResponse>(urlWithParams);
       setApiResponse(response.data);
     } catch (err: unknown) {
       console.error("Error fetching data:", err);
@@ -120,41 +114,36 @@ export default function Page() {
       }
     }
   };
-
   // ------------------------------------------------
   // 4) Download data as CSV
   // ------------------------------------------------
   const handleDownloadCSV = () => {
     if (!apiResponse) return;
-
     const rows: string[] = [];
-
     if (Array.isArray(apiResponse)) {
-        if (apiResponse.length > 0) {
-            const headers = Object.keys(apiResponse[0] as object); // Type assertion
-            rows.push(headers.join(","));
-
-            apiResponse.forEach(obj => { // Type inferred
-                rows.push(Object.values(obj).join(","));
-            });
-        }
-    } else if (apiResponse && typeof apiResponse === 'object' && 'historical' in apiResponse && Array.isArray(apiResponse.historical)) {
-        const historicalData = apiResponse.historical;
-        const headers = Object.keys(historicalData[0] as object); // Type assertion
+      if (apiResponse.length > 0) {
+        const headers = Object.keys(apiResponse[0] as HistoricalDataPoint); // More specific type assertion
         rows.push(headers.join(","));
-
-        historicalData.forEach(obj => { // Type inferred
-            rows.push(Object.values(obj).join(","));
+        apiResponse.forEach(obj => { // obj will be inferred as HistoricalDataPoint
+          rows.push(Object.values(obj).join(","));
         });
+      }
+    } else if (apiResponse && typeof apiResponse === 'object' && 'historical' in apiResponse && Array.isArray(apiResponse.historical)) {
+      const historicalData = apiResponse.historical;
+      if (historicalData.length > 0) { // Add check for empty historicalData
+        const headers = Object.keys(historicalData[0] as HistoricalDataPoint); // More specific type assertion
+        rows.push(headers.join(","));
+        historicalData.forEach(obj => { // obj will be inferred as HistoricalDataPoint
+          rows.push(Object.values(obj).join(","));
+        });
+      }
     } else if (typeof apiResponse === 'string' || apiResponse === null) {
-        console.error("API response was a string or null:", apiResponse);
-        return;
+      console.error("API response was a string or null:", apiResponse);
+      return;
     } else {
-        console.error("Unexpected API response format:", apiResponse);
-        return;
+      console.error("Unexpected API response format:", apiResponse);
+      return;
     }
-
-
     const csvContent = rows.join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -166,14 +155,12 @@ export default function Page() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
-
   return (
     <div className="min-h-screen flex flex-col items-center justify-start p-8 bg-background text-foreground">
       {/* Title */}
       <h1 className="text-6xl md:text-7xl font-bold text-primary mb-8 text-center">
         MUN Quant Society
       </h1>
-
       {/* Search Bar */}
       <div className="flex w-full max-w-2xl items-center space-x-4 mb-4">
         <Input
@@ -192,9 +179,7 @@ export default function Page() {
           {loading ? "Searching..." : "Search"}
         </Button>
       </div>
-
       {error && <p className="text-destructive mb-4">{error}</p>}
-
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4 w-full max-w-4xl">
         {results.map((result) => (
           <Card
@@ -217,14 +202,12 @@ export default function Page() {
           </Card>
         ))}
       </div>
-
       {selectedStock && (
         <div className="mt-8 w-full max-w-4xl text-center">
           <p className="text-2xl font-bold text-[var(--secondary)] mb-6">
             Current Selection: {selectedStock.name} ({selectedStock.symbol}) -{" "}
             {selectedStock.stockExchange}
           </p>
-
           <div className="flex flex-col items-center">
             <label className="block text-lg mb-4">Select Date Range</label>
             <Calendar
@@ -234,7 +217,6 @@ export default function Page() {
               className="p-4 border border-border rounded-md text-[var(--secondary)]"
             />
           </div>
-
           {/* URL Dropdown */}
           <div className="mt-6 w-full flex justify-center">
             <div className="w-full max-w-xs">
@@ -277,14 +259,12 @@ export default function Page() {
               </Select>
             </div>
           </div>
-
           <Button
             className="mt-6 bg-primary text-primary-foreground"
             onClick={handleApiCall}
           >
             Go!
           </Button>
-
           {apiResponse && (
             <div className="flex flex-col items-center">
               <Button
