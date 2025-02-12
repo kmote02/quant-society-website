@@ -15,22 +15,49 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { DateRange } from "react-day-picker";
 
+// ------------------------------------------------
+// Define a type for our API responses to avoid "any"
+// ------------------------------------------------
+type HistoricalData = {
+  [key: string]: unknown;
+};
+
+type ApiResponse =
+  | Array<HistoricalData>
+  | {
+      historical?: Array<HistoricalData>;
+      [key: string]: unknown;
+    }
+  | string
+  | null;
+
 export default function Page() {
   const [query, setQuery] = React.useState("");
-  const [results, setResults] = React.useState([]);
+  const [results, setResults] = React.useState<
+    Array<{
+      name: string;
+      symbol: string;
+      stockExchange: string;
+    }>
+  >([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+
   const [selectedStock, setSelectedStock] = React.useState<{
     name: string;
     symbol: string;
     stockExchange: string;
   } | null>(null);
+
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>({
     from: new Date(),
     to: new Date(),
   });
+
   const [selectedUrl, setSelectedUrl] = React.useState<string | null>(null);
-  const [apiResponse, setApiResponse] = React.useState<any>(null);
+
+  // Use the ApiResponse type here instead of "any"
+  const [apiResponse, setApiResponse] = React.useState<ApiResponse>(null);
 
   // ------------------------------------------------
   // 1) Search for stocks
@@ -87,9 +114,13 @@ export default function Page() {
       console.log(`Calling ${urlWithParams}`);
       const response = await axios.get(urlWithParams);
       setApiResponse(response.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error fetching data:", err);
-      setApiResponse(`Error: ${err.message}`);
+      if (err instanceof Error) {
+        setApiResponse(`Error: ${err.message}`);
+      } else {
+        setApiResponse(`Error: ${String(err)}`);
+      }
     }
   };
 
@@ -99,24 +130,30 @@ export default function Page() {
   const handleDownloadCSV = () => {
     if (!apiResponse) return;
 
-    let rows: string[] = [];
+    // Use 'const' instead of 'let' to satisfy "prefer-const"
+    const rows: string[] = [];
 
     if (Array.isArray(apiResponse)) {
       if (apiResponse.length > 0) {
         const headers = Object.keys(apiResponse[0]);
         rows.push(headers.join(","));
 
-        apiResponse.forEach((obj: any) => {
+        (apiResponse as Array<Record<string, unknown>>).forEach((obj) => {
           rows.push(Object.values(obj).join(","));
         });
       }
-    } else if (apiResponse.historical && Array.isArray(apiResponse.historical)) {
-      const data = apiResponse.historical;
+    } else if (
+      apiResponse !== null &&
+      typeof apiResponse === "object" &&
+      "historical" in apiResponse &&
+      Array.isArray(apiResponse.historical)
+    ) {
+      const data = apiResponse.historical as Array<Record<string, unknown>>;
       if (data.length > 0) {
         const headers = Object.keys(data[0]);
         rows.push(headers.join(","));
 
-        data.forEach((obj: any) => {
+        data.forEach((obj) => {
           rows.push(Object.values(obj).join(","));
         });
       }
@@ -154,7 +191,11 @@ export default function Page() {
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSearch()}
         />
-        <Button onClick={handleSearch} disabled={loading} className="bg-primary text-primary-foreground">
+        <Button
+          onClick={handleSearch}
+          disabled={loading}
+          className="bg-primary text-primary-foreground"
+        >
           {loading ? "Searching..." : "Search"}
         </Button>
       </div>
@@ -163,13 +204,22 @@ export default function Page() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4 w-full max-w-4xl">
         {results.map((result) => (
-          <Card key={result.symbol} className="shadow-md hover:shadow-xl transition-all cursor-pointer" onClick={() => handleCardSelect(result)}>
+          <Card
+            key={result.symbol}
+            className="shadow-md hover:shadow-xl transition-all cursor-pointer"
+            onClick={() => handleCardSelect(result)}
+          >
             <CardHeader>
               <CardTitle className="text-xl">{result.name}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm"><span className="font-bold">Symbol:</span> {result.symbol}</p>
-              <p className="text-sm"><span className="font-bold">Exchange:</span> {result.stockExchange}</p>
+              <p className="text-sm">
+                <span className="font-bold">Symbol:</span> {result.symbol}
+              </p>
+              <p className="text-sm">
+                <span className="font-bold">Exchange:</span>{" "}
+                {result.stockExchange}
+              </p>
             </CardContent>
           </Card>
         ))}
@@ -178,57 +228,62 @@ export default function Page() {
       {selectedStock && (
         <div className="mt-8 w-full max-w-4xl text-center">
           <p className="text-2xl font-bold text-[var(--secondary)] mb-6">
-            Current Selection: {selectedStock.name} ({selectedStock.symbol}) - {selectedStock.stockExchange}
+            Current Selection: {selectedStock.name} ({selectedStock.symbol}) -{" "}
+            {selectedStock.stockExchange}
           </p>
 
           <div className="flex flex-col items-center">
             <label className="block text-lg mb-4">Select Date Range</label>
-            <Calendar mode="range" selected={dateRange} onSelect={setDateRange} className="p-4 border border-border rounded-md text-[var(--secondary)]" />
+            <Calendar
+              mode="range"
+              selected={dateRange}
+              onSelect={setDateRange}
+              className="p-4 border border-border rounded-md text-[var(--secondary)]"
+            />
           </div>
 
           {/* URL Dropdown */}
           <div className="mt-6 w-full flex justify-center">
             <div className="w-full max-w-xs">
-                <Select onValueChange={setSelectedUrl}>
+              <Select onValueChange={setSelectedUrl}>
                 <SelectTrigger className="bg-muted rounded-md p-3 border border-primary w-full text-[var(--secondary)]">
-                    <SelectValue placeholder="Select Data Type" />
+                  <SelectValue placeholder="Select Data Type" />
                 </SelectTrigger>
                 <SelectContent className="bg-muted border border-primary rounded-md p-2">
-                    <SelectItem
+                  <SelectItem
                     value={`https://financialmodelingprep.com/api/v3/historical-chart/1min/AAPL?from=2018-03-12&to=2019-03-12&apikey=${process.env.NEXT_PUBLIC_API_KEY}`}
-                    >
+                  >
                     1 min data
-                    </SelectItem>
-                    <SelectItem
+                  </SelectItem>
+                  <SelectItem
                     value={`https://financialmodelingprep.com/api/v3/historical-chart/5min/AAPL?from=2018-03-12&to=2019-03-12&apikey=${process.env.NEXT_PUBLIC_API_KEY}`}
-                    >
+                  >
                     5 min data
-                    </SelectItem>
-                    <SelectItem
+                  </SelectItem>
+                  <SelectItem
                     value={`https://financialmodelingprep.com/api/v3/historical-chart/15min/AAPL?from=2018-03-12&to=2019-03-12&apikey=${process.env.NEXT_PUBLIC_API_KEY}`}
-                    >
+                  >
                     15 min data
-                    </SelectItem>
-                    <SelectItem
+                  </SelectItem>
+                  <SelectItem
                     value={`https://financialmodelingprep.com/api/v3/historical-chart/30min/AAPL?from=2018-03-12&to=2019-03-12&apikey=${process.env.NEXT_PUBLIC_API_KEY}`}
-                    >
+                  >
                     30 min data
-                    </SelectItem>
-                    <SelectItem
+                  </SelectItem>
+                  <SelectItem
                     value={`https://financialmodelingprep.com/api/v3/historical-chart/1hour/AAPL?from=2018-03-12&to=2019-03-12&apikey=${process.env.NEXT_PUBLIC_API_KEY}`}
-                    >
+                  >
                     1 hour data
-                    </SelectItem>
-                    <SelectItem
+                  </SelectItem>
+                  <SelectItem
                     value={`https://financialmodelingprep.com/api/v3/historical-price-full/AAPL?from=2018-03-12&to=2019-03-12&apikey=${process.env.NEXT_PUBLIC_API_KEY}`}
-                    >
+                  >
                     EOD data
-                    </SelectItem>
+                  </SelectItem>
                 </SelectContent>
-                </Select>
+              </Select>
             </div>
-            </div>
-
+          </div>
 
           <Button className="mt-6 bg-primary text-primary-foreground" onClick={handleApiCall}>
             Go!
@@ -236,14 +291,17 @@ export default function Page() {
 
           {apiResponse && (
             <div className="flex flex-col items-center">
-                <Button className="mt-6 bg-[var(--secondary)] text-background" onClick={handleDownloadCSV}>
+              <Button
+                className="mt-6 bg-[var(--secondary)] text-background"
+                onClick={handleDownloadCSV}
+              >
                 Download as CSV
-                </Button>
-                <pre className="p-4 mt-6 bg-muted rounded-md max-w-4xl overflow-auto text-sm">
+              </Button>
+              <pre className="p-4 mt-6 bg-muted rounded-md max-w-4xl overflow-auto text-sm">
                 {JSON.stringify(apiResponse, null, 2)}
-                </pre>
+              </pre>
             </div>
-            )}
+          )}
         </div>
       )}
     </div>
