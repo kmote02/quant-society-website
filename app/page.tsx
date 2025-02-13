@@ -21,12 +21,16 @@ export default function Home() {
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-4">
             Empowering students at Memorial University to explore careers in quantitative finance.
           </p>
-          <p className="text-xl text-secondary mb-8">First Meeting: Next Wednesday!</p>
-          <p className="text-xl mb-8">12th Feb | 1 PM | EN2022!</p>
+          <p className="text-xl text-secondary mb-8">Next Meeting:</p>
+          <p className="text-xl mb-8">17th Feb | 5 PM | EN2022!</p>
 
           {/* Get Involved Button */}
           <a href="https://forms.gle/4GGqxBNs49x4KNKK7" target="_blank" rel="noopener noreferrer">
             <Button className="bg-primary hover:bg-primary/90 px-6 py-3">Get Involved</Button>
+          </a>
+
+          <a className="mt-8" href="https://forms.gle/52s9LxHBYhvW8gvC8" target="_blank" rel="noopener noreferrer">
+            <Button className="bg-primary hover:bg-primary/90 px-6 py-3">Team Assignment Form</Button>
           </a>
         </section>
 
