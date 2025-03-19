@@ -124,7 +124,7 @@ export default function Page() {
       if (apiResponse.length > 0) {
         const headers = Object.keys(apiResponse[0] as HistoricalDataPoint); // More specific type assertion
         rows.push(headers.join(","));
-        apiResponse.forEach(obj => { // obj will be inferred as HistoricalDataPoint
+        apiResponse.slice().reverse().forEach(obj => {
           rows.push(Object.values(obj).join(","));
         });
       }
@@ -133,7 +133,7 @@ export default function Page() {
       if (historicalData.length > 0) { // Add check for empty historicalData
         const headers = Object.keys(historicalData[0] as HistoricalDataPoint); // More specific type assertion
         rows.push(headers.join(","));
-        historicalData.forEach(obj => { // obj will be inferred as HistoricalDataPoint
+        historicalData.slice().reverse().forEach(obj => {
           rows.push(Object.values(obj).join(","));
         });
       }
